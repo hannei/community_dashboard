@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>社区运营数据看板（美观版） | 脱敏Demo</title>
+    <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", "Microsoft Yahei", sans-serif; }
+        body {
+            background: linear-gradient(135deg, #eef2f7 0%, #e4edf7 100%);
+            padding: 28px;
+            color: #1f2937;
+        }
+
+        /* 顶部横幅 */
+        .banner {
+            background: linear-gradient(120deg, #1e3a8a 0%, #2563eb 55%, #06b6d4 100%);
+            border-radius: 16px;
+            padding: 28px 36px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+        }
+        .banner h1 { color: #fff; font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .banner p { color: rgba(255,255,255,0.82); font-size: 13px; }
+        .time-switch {
+            display: flex;
+            background: rgba(255,255,255,0.18);
+            border-radius: 10px;
+            padding: 4px;
+            backdrop-filter: blur(6px);
+        }
+        .time-btn {
+            padding: 8px 22px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: rgba(255,255,255,0.85);
+            transition: all 0.25s;
+        }
+        .time-btn.active {
+            background: #fff;
+            color: #1d4ed8;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        /* KPI 卡片 */
+        .kpi-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+        .kpi-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px 22px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
+            border-left: 5px solid #2563eb;
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+        .kpi-card:nth-child(4n+2) { border-left-color: #06b6d4; }
+        .kpi-card:nth-child(4n+3) { border-left-color: #f59e0b; }
+        .kpi-card:nth-child(4n+4) { border-left-color: #ec4899; }
+        .kpi-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12); }
+        .kpi-label { font-size: 13px; color: #6b7280; margin-bottom: 10px; }
+        .kpi-value { font-size: 27px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+        .kpi-change { font-size: 12px; font-weight: 500; }
+        .up { color: #059669; }
+        .down { color: #e11d48; }
+
+        /* 图表卡片 */
+        .chart-box {
+            background: #fff;
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            height: 370px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
+        }
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: #111827;
+            padding-left: 10px;
+            border-left: 4px solid #2563eb;
+        }
+        .chart { width: 100%; height: calc(100% - 32px); }
+
+        /* 表格卡片 */
+        .table-box {
+            background: #fff;
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
+        }
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: #111827;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-left: 10px;
+            border-left: 4px solid #2563eb;
+        }
+        .table-tip { display: flex; align-items: center; gap: 8px; border-left: none; padding: 0; }
+        .filter-label { font-size: 12px; color: #6b7280; }
+        .filter-select {
+            padding: 7px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13px;
+            background: #f9fafb;
+            cursor: pointer;
+            outline: none;
+            min-width: 115px;
+            transition: border-color 0.2s;
+        }
+        .filter-select:focus { border-color: #2563eb; background: #fff; }
+        .table-scroll { overflow-x: auto; max-height: 450px; overflow-y: auto; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 11px 12px; text-align: center; white-space: nowrap; }
+        th {
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e0e7ff;
+            position: sticky;
+            top: 0;
+        }
+        td { border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+        tbody tr { transition: background 0.2s; }
+        tbody tr:hover { background: #eff6ff; }
+        tbody tr.active { background: #dbeafe; }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <div>
+            <h1>社区板块运营数据看板</h1>
+            <p>脱敏演示数据 · 支持日 / 周 / 月维度切换与板块下钻分析</p>
+        </div>
+        <div class="time-switch">
+            <button class="time-btn active" data-type="day">日</button>
+            <button class="time-btn" data-type="week">周</button>
+            <button class="time-btn" data-type="month">月</button>
+        </div>
+    </div>
+
+    <!-- KPI 第一层：大盘概览 -->
+    <div class="kpi-cards">
+        <div class="kpi-card">
+            <div class="kpi-label">社区UV</div>
+            <div class="kpi-value" id="kpi-uv">12,680</div>
+            <div class="kpi-change up">环比 ↑ 6.4%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">平台渗透率</div>
+            <div class="kpi-value" id="kpi-penetrate">24.1%</div>
+            <div class="kpi-change up">环比 ↑ 1.2%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">发帖用户数</div>
+            <div class="kpi-value" id="kpi-post-user">332</div>
+            <div class="kpi-change up">环比 ↑ 4.8%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">社区互动率</div>
+            <div class="kpi-value" id="kpi-rate">17.2%</div>
+            <div class="kpi-change down">环比 ↓ 0.8%</div>
+        </div>
+    </div>
+    <div class="kpi-cards">
+        <div class="kpi-card">
+            <div class="kpi-label">人均停留时长</div>
+            <div class="kpi-value" id="kpi-time">4分35秒</div>
+            <div class="kpi-change up">环比 ↑ 3.2%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">人均浏览页数</div>
+            <div class="kpi-value" id="kpi-pages">3.11</div>
+            <div class="kpi-change up">环比 ↑ 2.1%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">人均发帖数</div>
+            <div class="kpi-value" id="kpi-avg-post">1.13</div>
+            <div class="kpi-change down">环比 ↓ 0.3%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">人均互动次数</div>
+            <div class="kpi-value" id="kpi-avg-interact">2.52</div>
+            <div class="kpi-change up">环比 ↑ 3.9%</div>
+        </div>
+    </div>
+
+    <!-- 图表区 -->
+    <div class="chart-box">
+        <div class="chart-title">UV / PV 流量趋势</div>
+        <div class="chart" id="chart-uvpv"></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">内容生产与互动参与趋势</div>
+        <div class="chart" id="chart-post"></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">互动行为构成</div>
+        <div class="chart" id="chart-pie"></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title">用户粘性与使用深度趋势</div>
+        <div class="chart" id="chart-depth"></div>
+    </div>
+
+    <!-- 表格区 -->
+    <div class="table-box">
+        <div class="table-title">
+            内容板块汇总
+            <span class="table-tip">
+                <span class="filter-label">板块筛选</span>
+                <select class="filter-select" id="filter-cate-1"></select>
+            </span>
+        </div>
+        <div class="table-scroll">
+            <table id="category-table">
+                <thead>
+                    <tr>
+                        <th>内容板块</th>
+                        <th>板块UV</th>
+                        <th>发帖量</th>
+                        <th>发帖用户数</th>
+                        <th>总获赞数</th>
+                        <th>总评论数</th>
+                        <th>总分享数</th>
+                        <th>互动率</th>
+                        <th>爆款帖数(赞≥100)</th>
+                    </tr>
+                </thead>
+                <tbody id="category-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="table-box">
+        <div class="table-title">
+            帖子明细下钻
+            <span class="table-tip">
+                <span class="filter-label">板块筛选</span>
+                <select class="filter-select" id="filter-cate-2"></select>
+            </span>
+        </div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>帖子ID</th>
+                        <th>帖子主题</th>
+                        <th>帖主ID</th>
+                        <th>帖主类型</th>
+                        <th>所属板块</th>
+                        <th>发帖日期</th>
+                        <th>累计浏览量</th>
+                        <th>累计获赞</th>
+                        <th>累计评论</th>
+                        <th>累计分享</th>
+                        <th>单帖互动率</th>
+                        <th>传播系数</th>
+                    </tr>
+                </thead>
+                <tbody id="post-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 模拟脱敏数据（与PowerBI版一致） ====================
+        const dateList = ['10-29','10-30','10-31','11-01','11-02','11-03','11-04','11-05','11-06','11-07'];
+        const uvData = [10200, 10850, 11200, 10980, 11650, 12100, 11800, 12458, 13021, 12680];
+        const pvData = [30600, 34720, 32480, 34038, 38445, 34485, 35990, 38371, 41016, 39435];
+        const postData = [268, 285, 296, 282, 310, 322, 305, 326, 345, 332];
+        const interactUserData = [1420, 1560, 1620, 1540, 1780, 1850, 1700, 1890, 2010, 1950];
+        const avgPagesData = [3.00, 3.20, 2.90, 3.10, 3.30, 2.85, 3.05, 3.08, 3.15, 3.11];
+        const avgTimeData = [255, 268, 260, 264, 275, 258, 266, 272, 280, 275];
+
+        const categoryData = [
+            { name: '经验分享', uv: 4860, posts: 86, users: 78, likes: 986, comments: 320, shares: 214, rate: '18.6%', hot: 6 },
+            { name: '问题求助', uv: 3980, posts: 72, users: 65, likes: 542, comments: 410, shares: 68, rate: '14.2%', hot: 2 },
+            { name: '日常打卡', uv: 4220, posts: 68, users: 62, likes: 768, comments: 186, shares: 96, rate: '21.0%', hot: 4 },
+            { name: '话题讨论', uv: 3650, posts: 54, users: 48, likes: 702, comments: 386, shares: 172, rate: '17.8%', hot: 5 },
+            { name: '资源分享', uv: 2840, posts: 46, users: 41, likes: 436, comments: 142, shares: 268, rate: '12.6%', hot: 3 }
+        ];
+
+        const postDataList = [
+            { id: 'P10098', topic: '经验总结', uid: 'U2001', utype: 'KOL', cate: '经验分享', date: '2026-11-07', views: 1380, likes: 132, comments: 35, shares: 17 },
+            { id: 'P10099', topic: '日常打卡', uid: 'U2002', utype: '普通用户', cate: '日常打卡', date: '2026-11-07', views: 890, likes: 98, comments: 19, shares: 9 },
+            { id: 'P10100', topic: '问题求助', uid: 'U2003', utype: '普通用户', cate: '问题求助', date: '2026-11-07', views: 540, likes: 47, comments: 29, shares: 4 },
+            { id: 'P10101', topic: '话题讨论', uid: 'U2004', utype: 'KOL', cate: '话题讨论', date: '2026-11-07', views: 980, likes: 92, comments: 45, shares: 13 },
+            { id: 'P10102', topic: '资源分享', uid: 'U2005', utype: '官方号', cate: '资源分享', date: '2026-11-06', views: 1680, likes: 76, comments: 16, shares: 26 },
+            { id: 'P10103', topic: '经验总结', uid: 'U2006', utype: 'KOL', cate: '经验分享', date: '2026-11-06', views: 1920, likes: 162, comments: 51, shares: 21 },
+            { id: 'P10104', topic: '日常打卡', uid: 'U2007', utype: '普通用户', cate: '日常打卡', date: '2026-11-06', views: 720, likes: 66, comments: 13, shares: 6 },
+            { id: 'P10105', topic: '活动参与', uid: 'U2008', utype: 'KOL', cate: '话题讨论', date: '2026-11-05', views: 1180, likes: 118, comments: 59, shares: 16 },
+            { id: 'P10106', topic: '问题求助', uid: 'U2009', utype: '普通用户', cate: '问题求助', date: '2026-11-05', views: 450, likes: 40, comments: 24, shares: 2 },
+            { id: 'P10107', topic: '资源分享', uid: 'U2010', utype: '官方号', cate: '资源分享', date: '2026-11-05', views: 2240, likes: 94, comments: 22, shares: 32 },
+            { id: 'P10108', topic: '经验总结', uid: 'U2011', utype: 'KOL', cate: '经验分享', date: '2026-11-04', views: 1580, likes: 124, comments: 38, shares: 18 },
+            { id: 'P10109', topic: '话题讨论', uid: 'U2012', utype: '普通用户', cate: '话题讨论', date: '2026-11-04', views: 1040, likes: 85, comments: 41, shares: 11 }
+        ];
+        // ==================== 表格渲染与筛选联动 ====================
+        let currentCate = '经验分享';
+
+        function renderCategoryTable() {
+            const list = currentCate === '全部板块'
+                ? categoryData
+                : categoryData.filter(c => c.name === currentCate);
+            const tbody = document.getElementById('category-body');
+            tbody.innerHTML = list.map(item => `
+                <tr data-cate="${item.name}">
+                    <td>${item.name}</td>
+                    <td>${item.uv.toLocaleString()}</td>
+                    <td>${item.posts}</td>
+                    <td>${item.users}</td>
+                    <td>${item.likes}</td>
+                    <td>${item.comments}</td>
+                    <td>${item.shares}</td>
+                    <td>${item.rate}</td>
+                    <td>${item.hot}</td>
+                </tr>
+            `).join('');
+            tbody.querySelectorAll('tr').forEach(tr => {
+                tr.addEventListener('click', () => setCate(tr.dataset.cate));
+            });
+        }
+
+        function renderPostTable(cate) {
+            const list = cate ? postDataList.filter(p => p.cate === cate) : postDataList;
+            const tbody = document.getElementById('post-body');
+            tbody.innerHTML = list.map(item => {
+                const interactRate = ((item.likes + item.comments + item.shares) / item.views * 100).toFixed(1) + '%';
+                const spreadRate = (item.shares / item.views * 100).toFixed(1) + '%';
+                return `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td style="white-space:normal;min-width:120px">${item.topic}</td>
+                        <td>${item.uid}</td>
+                        <td>${item.utype}</td>
+                        <td>${item.cate}</td>
+                        <td>${item.date}</td>
+                        <td>${item.views.toLocaleString()}</td>
+                        <td>${item.likes}</td>
+                        <td>${item.comments}</td>
+                        <td>${item.shares}</td>
+                        <td>${interactRate}</td>
+                        <td>${spreadRate}</td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function initFilters() {
+            const options = ['全部板块'].concat(categoryData.map(c => c.name));
+            ['filter-cate-1', 'filter-cate-2'].forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+                sel.value = currentCate;
+                sel.addEventListener('change', () => setCate(sel.value));
+            });
+        }
+
+        function setCate(cate) {
+            currentCate = cate;
+            document.getElementById('filter-cate-1').value = cate;
+            document.getElementById('filter-cate-2').value = cate;
+            renderCategoryTable();
+            renderPostTable(cate === '全部板块' ? null : cate);
+        }
+
+        const splitLineStyle = { lineStyle: { color: '#f1f5f9' } };
+        const axisLineStyle = { lineStyle: { color: '#cbd5e1' } };
+
+        // ==================== 图表1：UV/PV（平滑曲线+渐变面积） ====================
+        const uvChart = echarts.init(document.getElementById('chart-uvpv'));
+        uvChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    let s = params[0].axisValue + '<br/>';
+                    params.forEach(p => {
+                        const unit = p.seriesName === 'UV' ? ' 人' : ' 次';
+                        s += p.marker + p.seriesName + '：' + p.value.toLocaleString() + unit + '<br/>';
+                    });
+                    return s;
+                }
+            },
+            legend: { data: ['UV', 'PV'], right: 10, top: 0, icon: 'roundRect' },
+            grid: { left: 82, right: 82, top: 48, bottom: 35 },
+            color: ['#2563eb', '#06b6d4'],
+            xAxis: { type: 'category', data: dateList, axisLine: axisLineStyle, axisTick: { show: false } },
+            yAxis: [
+                { type: 'value', splitLine: splitLineStyle, axisLine: { show: false }, axisTick: { show: false } },
+                { type: 'value', splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } }
+            ],
+            series: [
+                {
+                    name: 'UV', type: 'line', smooth: true, data: uvData, symbol: 'circle', symbolSize: 7, yAxisIndex: 0,
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                        { offset: 0, color: 'rgba(37,99,235,0.35)' },
+                        { offset: 1, color: 'rgba(37,99,235,0.02)' }
+                    ])}
+                },
+                {
+                    name: 'PV', type: 'line', smooth: true, data: pvData, symbol: 'circle', symbolSize: 7, yAxisIndex: 1,
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                        { offset: 0, color: 'rgba(6,182,212,0.3)' },
+                        { offset: 1, color: 'rgba(6,182,212,0.02)' }
+                    ])}
+                }
+            ]
+        });
+
+        // ==================== 图表2：发帖量(渐变柱)/互动用户(平滑线) ====================
+        const postChart = echarts.init(document.getElementById('chart-post'));
+        postChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    let s = params[0].axisValue + '<br/>';
+                    params.forEach(p => {
+                        const unit = p.seriesName === '发帖量' ? ' 篇' : ' 人';
+                        s += p.marker + p.seriesName + '：' + p.value.toLocaleString() + unit + '<br/>';
+                    });
+                    return s;
+                }
+            },
+            legend: { data: ['发帖量', '互动用户数'], right: 10, top: 0, icon: 'roundRect' },
+            grid: { left: 82, right: 82, top: 48, bottom: 35 },
+            color: ['#2563eb', '#eab308'],
+            xAxis: { type: 'category', data: dateList, axisLine: axisLineStyle, axisTick: { show: false } },
+            yAxis: [
+                { type: 'value', splitLine: splitLineStyle, axisLine: { show: false }, axisTick: { show: false } },
+                { type: 'value', splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } }
+            ],
+            series: [
+                {
+                    name: '发帖量', type: 'bar', data: postData, barWidth: 22, yAxisIndex: 0,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                            { offset: 0, color: '#2563eb' },
+                            { offset: 1, color: '#93c5fd' }
+                        ])
+                    }
+                },
+                { name: '互动用户数', type: 'line', smooth: true, data: interactUserData, symbol: 'circle', symbolSize: 7, yAxisIndex: 1 }
+            ]
+        });
+
+        // ==================== 图表3：互动构成（现代配色，只显示百分比） ====================
+        const pieChart = echarts.init(document.getElementById('chart-pie'));
+        pieChart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {c}次 ({d}%)' },
+            legend: { bottom: 5, left: 'center', icon: 'circle' },
+            color: ['#2563eb', '#06b6d4', '#f59e0b'],
+            series: [{
+                type: 'pie',
+                radius: ['46%', '68%'],
+                center: ['50%', '46%'],
+                itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
+                label: { formatter: '{d}%', fontSize: 12, fontWeight: 600 },
+                data: [
+                    { value: 1280, name: '点赞' },
+                    { value: 420, name: '评论' },
+                    { value: 190, name: '分享' }
+                ]
+            }]
+        });
+
+        // ==================== 图表4：浏览页数(渐变柱)/停留时长(平滑线) ====================
+        const depthChart = echarts.init(document.getElementById('chart-depth'));
+        depthChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    let s = params[0].axisValue + '<br/>';
+                    params.forEach(p => {
+                        const unit = p.seriesName === '人均浏览页数' ? ' 页' : ' 秒';
+                        s += p.marker + p.seriesName + '：' + p.value.toLocaleString() + unit + '<br/>';
+                    });
+                    return s;
+                }
+            },
+            legend: { data: ['人均浏览页数', '人均停留时长'], right: 10, top: 0, icon: 'roundRect' },
+            grid: { left: 82, right: 82, top: 48, bottom: 35 },
+            color: ['#8b5cf6', '#059669'],
+            xAxis: { type: 'category', data: dateList, axisLine: axisLineStyle, axisTick: { show: false } },
+            yAxis: [
+                { type: 'value', min: 2.6, max: 3.4, splitLine: splitLineStyle, axisLine: { show: false }, axisTick: { show: false } },
+                { type: 'value', min: 245, max: 290, splitLine: { show: false }, axisLine: { show: false }, axisTick: { show: false } }
+            ],
+            series: [
+                {
+                    name: '人均浏览页数', type: 'bar', data: avgPagesData, barWidth: 22, yAxisIndex: 0,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                            { offset: 0, color: '#8b5cf6' },
+                            { offset: 1, color: '#c4b5fd' }
+                        ])
+                    }
+                },
+                { name: '人均停留时长', type: 'line', smooth: true, data: avgTimeData, symbol: 'circle', symbolSize: 7, yAxisIndex: 1 }
+            ]
+        });
+
+        window.addEventListener('resize', () => {
+            uvChart.resize();
+            postChart.resize();
+            pieChart.resize();
+            depthChart.resize();
+        });
+
+        // 时间维度切换
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const ratio = btn.dataset.type === 'day' ? 1 : btn.dataset.type === 'week' ? 6.8 : 28.5;
+                document.getElementById('kpi-uv').textContent = Math.round(12680 * ratio).toLocaleString();
+                document.getElementById('kpi-post-user').textContent = Math.round(332 * ratio).toLocaleString();
+            });
+        });
+
+        // 初始化
+        initFilters();
+        renderCategoryTable();
+        renderPostTable(currentCate);
+
+    </script>
+</body>
+</html>
